@@ -1,119 +1,146 @@
 #' Generate a settings object based on a data standard
 #'
-#' This function returns a settings object for the eDish chart based on the specified data standard. 
+#' This function returns a settings object for the eDish chart based on the specified data standard.
 #'
-#' The function is designed to work with the SDTM and AdAM CDISC(<https://www.cdisc.org/>) standards for clinical trial data. Currently, eDish is the only chart supported.
+#' The function is designed to work with the SDTM and ADaM CDISC(<https://www.cdisc.org/>) standards for clinical trial data. Currently, eDish is the only chart supported.
 #'
-#' @param standard The data standard for which to create settings. Valid options are "SDTM", "AdAM" or "None". Default: \code{"SDTM"}
-#' @param chart The chart for which standards should be generated ("eDish" only for now) . Default: \code{"eDish"}.
-#' @param partial Boolean for whether or not the standard is a partial standard. Default: \code{"NULL"}.
-#' @param partial_cols Optional character vector of the matched cols if partial is TRUE. It will not be used if partial is FALSE Default: \code{"NULL"}.
+#' @param standard The data standard for which to create settings. Valid options are "sdtm", "adam" or "none". Default: \code{"None"}.
+#' @param charts The chart or charts for which settings should be generated. Default: \code{NULL} (uses all available charts).
+#' @param useDefaults Specifies whether default values from settingsMetadata should be included in the settings object. Default: \code{TRUE}.
+#' @param partial Boolean for whether or not the standard is a partial standard. Default: \code{FALSE}.
+#' @param partial_keys Optional character vector of the matched settings if partial is TRUE. Settings should be identified using the text_key format described in ?settingsMetadata. Setting is ignored when partial is FALSE. Default: \code{NULL}.
+#' @param custom_settings A tibble describing custom settings to be added to the settings object. Custom values overwrite default values when provided. Tibble should  have text_key and customValue columns. Default: \code{NULL}. 
+#' 
 #' @return A list containing the appropriate settings for the selected chart
-#' 
-#' @examples 
-#' 
-#' generateSettings(standard="SDTM") 
+#'
+#' @examples
+#'
+#' generateSettings(standard="SDTM")
 #' generateSettings(standard="SdTm") #also ok
-#' generateSettings(standard="SDTM", partial=TRUE, partial_cols = c("USUBJID","TEST","STRESN"))
-#' generateSettings(standard="AdAM")
-#' 
-#' generateSettings(standard="a different standard") 
+#' generateSettings(standard="ADaM")
+#' pkeys<- c("id_col","measure_col","value_col")
+#' generateSettings(standard="adam", partial=TRUE, partial_keys=pkeys)
+#'
+#' generateSettings(standard="a different standard")
 #' #returns shell settings list with no data mapping
-#' 
-#' \dontrun{
-#' generateSettings(standard="adam",chart="AEExplorer") #Throws error. Only eDish supported so far. 
-#' }
-#' 
-#' @importFrom dplyr "filter"
+#'
+#' @importFrom dplyr "filter" full_join
 #' @importFrom stringr str_split
 #' @importFrom rlang .data
-#' 
+#'
 #' @export
 
-generateSettings <- function(standard="None", chart="eDish", partial=FALSE, partial_cols=NULL){
-  if(tolower(chart)!="edish"){
-    stop(paste0("Can't generate settings for the specified chart ('",chart,"'). Only the 'eDish' chart is supported for now."))
-  }
-  
-  # Check that partial_cols is supplied if partial is true
-  if  (is.null(partial_cols) & partial ) {
-    stop("partial_cols must be supplied if the standard is partial")
-  }
-  
-  metadata <- safetyGraphics::getSettingsMetadata(
-    charts = chart, 
-    cols=c("text_key","adam","sdtm"),
-    filter_expr = .data$adam != '' & .data$sdtm != '' 
-  )
+generateSettings <- function(standard="None", charts=NULL, useDefaults=TRUE, partial=FALSE, partial_keys=NULL, custom_settings=NULL){
 
-  # Split on -- for multi-level handling 
-  hierarchical_metadata <- str_split(metadata$text_key, "--") 
-  
-  settings<-list(
-    id_col = NULL,
-    value_col = NULL,
-    measure_col = NULL,
-    normal_col_low = NULL,
-    normal_col_high = NULL,
-    studyday_col=NULL,
-    visit_col = NULL,
-    visitn_col = NULL,
-    filters = NULL,
-    group_cols = NULL,
-    measure_values = list(ALT = NULL,
-                          AST = NULL,
-                          TB = NULL,
-                          ALP = NULL),
-    baseline = list(value_col=NULL,
-                    values=list()),
-    analysisFlag = list(value_col=NULL,
-                        values=list()),
-    
-    x_options = c("LT", "AST", "ALP"),
-    y_options = c("TB", "ALP"),
-    visit_window = 30,
-    r_ratio_filter = TRUE,
-    r_ratio_cut = 0,
-    showTitle = TRUE,
-    warningText = "Caution: This interactive graphic is not validated. Any clinical recommendations based on this tool should be confirmed using your organizations standard operating procedures."
-  )
-  
-  potential_settings <- settings
-  
-  standard_low <- tolower(standard)
-  
-  if (standard_low == "adam" | standard_low == "sdtm") {
-    
-  for (row in hierarchical_metadata)  {
-    if (length(row) == 1) {
-      potential_settings[row] <- filter(metadata,.data$text_key == !!row)[[standard_low]]
-    } else if (length(row) == 2) {
-      potential_settings[row[[1]]][[1]][row[[2]]] <- filter(metadata, grepl(!!row[[2]],.data$text_key))[[standard_low]]
-    } else{
-      stop("Three level setting nests are not currently supported")
+  # Check that partial_keys is supplied if partial is true
+  if  (is.null(partial_keys) & partial ) {
+    stop("partial_keys must be supplied if the standard is partial")
+  }
+
+  # Coerce options to lowercase
+  standard<-tolower(standard)
+  if(!is.null(charts)){
+    charts<-tolower(charts)
+  }
+
+  #############################################################################
+  # get keys & default values for settings using a data standard (data and field mappings)
+  ############################################################################
+  # Build a table of data mappings for the selected standard and partial settings
+  standardList<-safetyGraphics::standardsMetadata%>%select(-.data$text_key)%>%names
+
+  if(standard %in% standardList){
+    dataDefaults <- safetyGraphics::getSettingsMetadata(
+      charts = charts,
+      cols=c("text_key",standard,"setting_required")
+    ) %>%
+    filter(.data$setting_required)%>%
+    select(-.data$setting_required)%>%
+    rename("dataDefault" = standard)%>%
+    filter(.data$dataDefault != '') %>%
+    as_tibble
+  }else{
+    dataDefaults<-tibble(text_key=character(),dataDefault=character(), .rows=0)
+  }
+
+  if(partial){
+    dataDefaults <-dataDefaults%>%filter(.data$text_key %in% partial_keys)
+  }
+  #############################################################################
+  # get keys & default values for settings not using a data standard
+  #############################################################################
+  if(useDefaults){
+    otherDefaults <- safetyGraphics::getSettingsMetadata(
+      charts = charts) %>% 
+      filter(!.data$column_mapping & !.data$field_mapping) %>% 
+      select(.data$text_key, .data$default)%>% 
+      rename("otherDefault"="default")
+  }else{
+    otherDefaults <- tibble(text_key=character(),otherDefault=character(), .rows=0)
+  }
+
+  #############################################################################
+  # merge all keys & default values
+  #############################################################################
+  key_values <- full_join(dataDefaults, otherDefaults, by="text_key")
+  key_values <- key_values %>% mutate(default=ifelse(is.na(.data$dataDefault),.data$otherDefault,.data$dataDefault))
+
+  #############################################################################
+  # Apply custom settings (if any)
+  #############################################################################
+    if(!is.null(custom_settings)){
+      key_values<-full_join(key_values, custom_settings, by="text_key")
+    } else if (nrow(key_values)>0){
+      key_values$customValue<-NA
     }
     
+  if (nrow(key_values)>0){
+    key_values<- key_values %>% mutate(value=ifelse(is.na(.data$customValue),.data$default,.data$customValue))
+    
   }
   
+
+  #############################################################################
+  # create shell settings object
+  #############################################################################
+  shell<-generateShell(charts=charts)
+
+  #########################################################################################
+  # populate the shell settings by looping through key_values and apply them to the shell
+  #########################################################################################
+  if (nrow(key_values)>0){
+    for(row in 1:nrow(key_values)){
+      text_key<-key_values[row,]%>%pull("text_key")
+      key<- textKeysToList(text_key)[[1]]
+      type <- safetyGraphics::getSettingsMetadata(text_keys=text_key,cols="setting_type")
+      value <- key_values[row,"value"][[1]]
+      finalValue <- value[[1]]
+      
+      shell<-setSettingsValue(
+        settings = shell,
+        key = key,
+        value = finalValue
+      )
+    } 
   }
-  
-  if(partial) {
-    
-    settings_names <- names(settings)
-    
-    potential_names <- names(potential_settings)
-    
-    for(i in 1:length(settings)) {
-      if (potential_settings[i] %in% partial_cols) {
-        settings[[which(settings_names == potential_names[i])]] <- potential_settings[[i]]
+
+  #Coerce empty string to NULL for data mappings
+
+  data_mappings <- safetyGraphics::getSettingsMetadata(
+    charts = charts,
+    cols="text_key",
+    filter_expr=.data$column_mapping
+  )
+  for(text_key in data_mappings){ 
+    key <- textKeysToList(text_key)[[1]]
+    current <- getSettingValue(key,shell) 
+    if (!is.null(current)){
+      if(length(current) <=1) { 
+        if(current == ""){
+          shell<-setSettingsValue(key=key, value=NULL, settings=shell)
+        } 
       }
     }
-    
-  } else {
-    
-    settings <- potential_settings
-    
   }
-  
-  return(settings)
+  return(shell)
 }

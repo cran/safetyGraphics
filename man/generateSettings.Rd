@@ -4,17 +4,22 @@
 \alias{generateSettings}
 \title{Generate a settings object based on a data standard}
 \usage{
-generateSettings(standard = "None", chart = "eDish", partial = FALSE,
-  partial_cols = NULL)
+generateSettings(standard = "None", charts = NULL,
+  useDefaults = TRUE, partial = FALSE, partial_keys = NULL,
+  custom_settings = NULL)
 }
 \arguments{
-\item{standard}{The data standard for which to create settings. Valid options are "SDTM", "AdAM" or "None". Default: \code{"SDTM"}}
+\item{standard}{The data standard for which to create settings. Valid options are "sdtm", "adam" or "none". Default: \code{"None"}.}
 
-\item{chart}{The chart for which standards should be generated ("eDish" only for now) . Default: \code{"eDish"}.}
+\item{charts}{The chart or charts for which settings should be generated. Default: \code{NULL} (uses all available charts).}
 
-\item{partial}{Boolean for whether or not the standard is a partial standard. Default: \code{"NULL"}.}
+\item{useDefaults}{Specifies whether default values from settingsMetadata should be included in the settings object. Default: \code{TRUE}.}
 
-\item{partial_cols}{Optional character vector of the matched cols if partial is TRUE. It will not be used if partial is FALSE Default: \code{"NULL"}.}
+\item{partial}{Boolean for whether or not the standard is a partial standard. Default: \code{FALSE}.}
+
+\item{partial_keys}{Optional character vector of the matched settings if partial is TRUE. Settings should be identified using the text_key format described in ?settingsMetadata. Setting is ignored when partial is FALSE. Default: \code{NULL}.}
+
+\item{custom_settings}{A tibble describing custom settings to be added to the settings object. Custom values overwrite default values when provided. Tibble should  have text_key and customValue columns. Default: \code{NULL}.}
 }
 \value{
 A list containing the appropriate settings for the selected chart
@@ -23,20 +28,17 @@ A list containing the appropriate settings for the selected chart
 This function returns a settings object for the eDish chart based on the specified data standard.
 }
 \details{
-The function is designed to work with the SDTM and AdAM CDISC(<https://www.cdisc.org/>) standards for clinical trial data. Currently, eDish is the only chart supported.
+The function is designed to work with the SDTM and ADaM CDISC(<https://www.cdisc.org/>) standards for clinical trial data. Currently, eDish is the only chart supported.
 }
 \examples{
 
-generateSettings(standard="SDTM") 
+generateSettings(standard="SDTM")
 generateSettings(standard="SdTm") #also ok
-generateSettings(standard="SDTM", partial=TRUE, partial_cols = c("USUBJID","TEST","STRESN"))
-generateSettings(standard="AdAM")
+generateSettings(standard="ADaM")
+pkeys<- c("id_col","measure_col","value_col")
+generateSettings(standard="adam", partial=TRUE, partial_keys=pkeys)
 
-generateSettings(standard="a different standard") 
+generateSettings(standard="a different standard")
 #returns shell settings list with no data mapping
-
-\dontrun{
-generateSettings(standard="adam",chart="AEExplorer") #Throws error. Only eDish supported so far. 
-}
 
 }
