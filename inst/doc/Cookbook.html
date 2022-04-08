@@ -12,7 +12,7 @@
 
 <meta name="author" content="Jeremy Wildfire" />
 
-<meta name="date" content="2021-09-21" />
+<meta name="date" content="2022-04-08" />
 
 <title>Cookbook</title>
 
@@ -26,6 +26,7 @@
   div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
   ul.task-list{list-style: none;}
     </style>
+
 
 
 
@@ -46,15 +47,28 @@
 
 <h1 class="title toc-ignore">Cookbook</h1>
 <h4 class="author">Jeremy Wildfire</h4>
-<h4 class="date">2021-09-21</h4>
+<h4 class="date">2022-04-08</h4>
 
 
 
 <div id="cookbook-vignette" class="section level1">
 <h1>Cookbook Vignette</h1>
-<p>This vignette contains a series of examples showing how to initialize the safetyGraphics Shiny app in different scenarios. For a general overview of the app see <a href="https://github.com/SafetyGraphics/safetyGraphics/wiki/Intro">this vignette</a>. For more details about adding custom charts, see <a href="https://github.com/SafetyGraphics/safetyGraphics/wiki/ChartConfiguration">this vignette</a>.</p>
-<div id="setup-and-installation" class="section level2">
-<h2>Setup and installation</h2>
+<p>This vignette contains a series of examples showing how to initialize the safetyGraphics Shiny app in different scenarios.</p>
+</div>
+<div id="overview" class="section level1">
+<h1>Overview</h1>
+<p>Most of the customization shown here is done by changing 4 key parameters in the <code>safetyGraphicsApp()</code> function:</p>
+<ul>
+<li><code>domainData</code> – Domain-level Study Data</li>
+<li><code>mapping</code> – List identifying the key columns/fields in your data</li>
+<li><code>charts</code> – Define the charts used in the app.</li>
+<li><code>meta</code> – Metadata table with info about required columns and fields</li>
+</ul>
+<p><code>domainData</code> and <code>mapping</code> generally change for every study, while <code>charts</code> and <code>meta</code> can generally be re-used across many studies.</p>
+<p>The examples here are generally provided with minimal explanation. For a more detailed discussion of the logic behind these examples see the <a href="ChartConfiguration.html">Chart Configuration Vignette</a> or our <a href="https://github.com/SafetyGraphics/RPharma2021-Workshop">2021 R/Pharma Workshop</a></p>
+</div>
+<div id="setup-and-installation" class="section level1">
+<h1>Setup and installation</h1>
 <p>safetyGraphics requires R v4 or higher. These examples have been tested using RStudio v1.4, but should work on other platforms with proper configuration.</p>
 <p>You can install <code>{safetyGraphics}</code> from CRAN like any other R package:</p>
 <pre><code>install.packages(&quot;safetyGraphics&quot;)
@@ -65,15 +79,18 @@ library(safetyCharts)
 devtools::install_github(&quot;safetyGraphics/safetyGraphics&quot;, ref=&quot;dev&quot;)
 library(safetyGraphics)
 safetyGraphics::safetyGraphicsApp()</code></pre>
-</div>
 <div id="example-1---default-app" class="section level2">
 <h2>Example 1 - Default App</h2>
 <p>To run the app with no customizations using sample AdAM data from the {safetyData} package, install the package and run:</p>
 <pre><code>safetyGraphics::safetyGraphicsApp()</code></pre>
 </div>
+</div>
+<div id="loading-custom-data" class="section level1">
+<h1>Loading Custom Data</h1>
+<p>The next several examples focus on study-specific customizations for loading and mapping data.</p>
 <div id="example-2---sdtm-data" class="section level2">
 <h2>Example 2 - SDTM Data</h2>
-<p>The data passed in to the safetyGraphics app can be customized using the <code>data</code> parameter in <code>safetyGraphicsApp()</code>. For example, to run the app with SDTM data saved in <code>{safetyData}</code>, call:</p>
+<p>The data passed in to the safetyGraphics app can be customized using the <code>domainData</code> parameter in <code>safetyGraphicsApp()</code>. For example, to run the app with SDTM data saved in <code>{safetyData}</code>, call:</p>
 <pre><code>sdtm &lt;- list(
     dm=safetyData::sdtm_dm,
     aes=safetyData::sdtm_ae,
@@ -89,47 +106,21 @@ safetyGraphics::safetyGraphicsApp(domainData=sdtm)</code></pre>
 safetyGraphics::safetyGraphicsApp(domainData=justLabs)</code></pre>
 <p>Note that charts with missing data are automatically dropped and the filtering tab is not present since it requires demographics data by default.</p>
 </div>
-<div id="example-4---drop-unwanted-charts" class="section level2">
-<h2>Example 4 - Drop Unwanted Charts</h2>
-<p>Users can also generate a list of charts and then drop charts that they don’t want to include. For example, if you wanted to drop charts with <code>type</code> of “htmlwidgets” you could run this code.</p>
-<pre><code>library(purrr)
-charts &lt;- makeChartConfig() #gets charts from safetyCharts pacakge by default
-notWidgets &lt;- charts %&gt;% purrr::keep(~.x$type != &quot;htmlwidget&quot;)
-safetyGraphicsApp(charts=notWidgets)</code></pre>
+<div id="example-4---loading-other-data-formats" class="section level2">
+<h2>Example 4 - Loading other data formats</h2>
+<p>Users can also import data from a wide-variety of data formats using standard R workflows and then initialize the app. The example below initializes the app using lab data saved as a sas transport file (.xpt)</p>
+<pre><code>xptLabs &lt;- haven::read_xpt(&#39;https://github.com/phuse-org/phuse-scripts/blob/master/data/adam/cdiscpilot01/adlbc.xpt?raw=true&#39;)
+safetyGraphics::safetyGraphicsApp(domainData=list(labs=xptLabs))</code></pre>
 </div>
-<div id="example-6---add-a-chart" class="section level2">
-<h2>Example 6 - Add a chart</h2>
-<p>The code below adds a new simple chart showing participants’ age distribution by sex.</p>
-<pre><code>ageDist &lt;- function(data, settings){
-    p&lt;-ggplot(data = data, aes_(x=as.name(settings$age_col))) +
-        geom_histogram() + 
-        facet_wrap(as.name(settings$sex_col))
-    return(p)
-}
-ageDist_chart&lt;-list(
-    env=&quot;safetyGraphics&quot;,
-    name=&quot;ageDist&quot;,
-    label=&quot;Age Distribution&quot;,
-    type=&quot;plot&quot;,
-    domain=&quot;dm&quot;,
-    workflow=list(
-        main=&quot;ageDist&quot;
-    )
-)
-charts &lt;- makeChartConfig() 
-charts$ageDist&lt;-ageDist_chart
-safetyGraphicsApp(charts=charts)</code></pre>
-<p>For extensive details on adding and customizing different types of charts, see this <a href="https://github.com/SafetyGraphics/safetyGraphics/wiki/ChartConfiguration">vignette</a>.</p>
-</div>
-<div id="example-7---non-standard-data" class="section level2">
-<h2>Example 7 - Non-standard data</h2>
+<div id="example-5---non-standard-data" class="section level2">
+<h2>Example 5 - Non-standard data</h2>
 <p>Next, let’s initialize the the app with non-standard data. {safetyGraphics} automatically detects AdAM and SDTM data when possible, but for non-standard data, the user must provide a data mapping. This can be done in the app using the data/mapping tab, or can be done when the app is initialized by passing a <code>mapping</code> list to <code>safetyGraphicsApp()</code>. For example:</p>
 <pre><code>notAdAM &lt;- list(labs=safetyData::adam_adlbc %&gt;% rename(id = USUBJID))
 idMapping&lt;- list(labs=list(id_col=&quot;id&quot;))
 safetyGraphicsApp(domainData=notAdAM, mapping=idMapping)</code></pre>
 </div>
-<div id="example-8---non-standard-data-2" class="section level2">
-<h2>Example 8 - Non-standard data #2</h2>
+<div id="example-6---non-standard-data-2" class="section level2">
+<h2>Example 6 - Non-standard data #2</h2>
 <p>For a more realistic example, consider <a href="https://raw.githubusercontent.com/SafetyGraphics/SafetyGraphics.github.io/master/pilot/SampleData_NoStandard.csv">this labs data set (csv)</a>. The data can be loaded in to safetyGraphics with the code below, but several items in the mapping page need to be filled in:</p>
 <pre><code>labs &lt;- read.csv(&quot;https://raw.githubusercontent.com/SafetyGraphics/SafetyGraphics.github.io/master/pilot/SampleData_NoStandard.csv&quot;)
 safetyGraphics::safetyGraphicsApp(domainData=list(labs=labs))</code></pre>
@@ -144,6 +135,153 @@ safetyGraphics::safetyGraphicsApp(
     mapping=customMapping   
 )</code></pre>
 <p>Note, that for more complex customizations, the setting page also provides a <code>.zip</code> file with a fully re-usable version of the app.</p>
+</div>
+</div>
+<div id="custom-charts" class="section level1">
+<h1>Custom Charts</h1>
+<p>The remaining examples focus on creating charts that are reusable across many studies. For extensive details on adding and customizing different types of charts, see this <a href="ChartConfiguration.html">vignette</a>.</p>
+<div id="example-7---drop-unwanted-charts" class="section level2">
+<h2>Example 7 - Drop Unwanted Charts</h2>
+<p>Users can also generate a list of charts and then drop charts that they don’t want to include. For example, if you wanted to drop charts with <code>type</code> of “htmlwidgets” you could run this code.</p>
+<pre><code>library(purrr)
+charts &lt;- makeChartConfig() #gets charts from safetyCharts pacakge by default
+notWidgets &lt;- charts %&gt;% purrr::keep(~.x$type != &quot;htmlwidget&quot;)
+safetyGraphicsApp(charts=notWidgets)</code></pre>
+</div>
+<div id="example-8---edit-default-charts" class="section level2">
+<h2>Example 8 - Edit Default Charts</h2>
+<p>Users can also make modifications to the default charts by editing the list of charts directly.</p>
+<pre><code>charts &lt;- makeChartConfig() #gets charts from safetyCharts pacakge by default
+charts$aeTimelines$label &lt;- &quot;An AMAZING timeline&quot;
+safetyGraphicsApp(charts=charts)</code></pre>
+</div>
+<div id="example-9---add-hello-world-custom-chart" class="section level2">
+<h2>Example 9 - Add Hello World Custom Chart</h2>
+<p>This example creates a simple “hello world” chart that is not linked to the data or mapping loaded in the app.</p>
+<pre><code>helloWorld &lt;- function(data, settings){
+    plot(-1:1, -1:1)
+    text(runif(20, -1,1),runif(20, -1,1),&quot;Hello World&quot;)
+}
+
+# Chart Configuration
+helloworld_chart&lt;-list(
+    env=&quot;safetyGraphics&quot;,
+    name=&quot;HelloWorld&quot;,
+    label=&quot;Hello World!&quot;,
+    type=&quot;plot&quot;,
+    domain=&quot;aes&quot;,
+    workflow=list(
+        main=&quot;helloWorld&quot;
+    )
+)
+
+safetyGraphicsApp(charts=list(helloworld_chart))</code></pre>
+</div>
+<div id="example-10---add-a-custom-chart-using-data-and-settings" class="section level2">
+<h2>Example 10 - Add a custom chart using data and settings</h2>
+<p>The code below adds a new simple chart showing participants’ age distribution by sex.</p>
+<pre><code>ageDist &lt;- function(data, settings){
+    p&lt;-ggplot(data = data, aes(x=.data[[settings$age_col]])) +
+        geom_histogram() + 
+        facet_wrap(settings$sex_col)
+    return(p)
+}
+
+ageDist_chart&lt;-list(
+    env=&quot;safetyGraphics&quot;,
+    name=&quot;ageDist&quot;,
+    label=&quot;Age Distribution&quot;,
+    type=&quot;plot&quot;,
+    domain=&quot;dm&quot;,
+    workflow=list(
+        main=&quot;ageDist&quot;
+    )
+)
+charts &lt;- makeChartConfig() 
+charts$ageDist&lt;-ageDist_chart
+safetyGraphicsApp(charts=charts)</code></pre>
+</div>
+<div id="example-11---create-a-hello-world-data-domain-and-chart" class="section level2">
+<h2>Example 11 - Create a Hello World Data Domain and Chart</h2>
+<p>Here we extend example 9 to include the creating of a new data domain with custom metadata, which is bound to the chart object as <code>chart$meta</code>. See <code>?makeMeta</code> for more detail about the creation of custom metadata.</p>
+<pre><code>
+helloMeta &lt;- tribble(
+    ~text_key, ~domain, ~label,       ~standard_hello, ~description,
+    &quot;x_col&quot;,   &quot;hello&quot;, &quot;x position&quot;, &quot;x&quot;,             &quot;x position for points in hello world chart&quot;,   
+    &quot;y_col&quot;,   &quot;hello&quot;, &quot;y position&quot;, &quot;y&quot;,             &quot;y position for points in hello world chart&quot;   
+) %&gt;% mutate(
+    col_key = text_key,
+    type=&quot;column&quot;
+)
+
+helloData&lt;-data.frame(x=runif(50, -1,1), y=runif(50, -1,1))
+
+helloWorld &lt;- function(data, settings){
+    plot(-1:1, -1:1)
+    text(data[[settings$x_col]], data[[settings$y_col]], &quot;Custom Hello Domain!&quot;)
+}
+
+helloChart&lt;-prepareChart(
+    list(
+        env=&quot;safetyGraphics&quot;,
+        name=&quot;HelloWorld&quot;,
+        label=&quot;Hello World!&quot;,
+        type=&quot;plot&quot;,
+        domain=&quot;hello&quot;,
+        workflow=list(
+            main=&quot;helloWorld&quot;
+        ), 
+        meta=helloMeta
+    )
+)
+
+charts &lt;- makeChartConfig()
+charts$hello &lt;- helloChart #Easy to combine default and custom charts
+data&lt;-list(
+    labs=safetyData::adam_adlbc, 
+    aes=safetyData::adam_adae, 
+    dm=safetyData::adam_adsl,
+    hello=helloData
+)
+
+#no need to specify meta since safetyGraphics::makeMeta() will generate the correct list by default. 
+safetyGraphicsApp(
+    domainData=data, 
+    charts=charts
+)</code></pre>
+</div>
+<div id="example-13---create-an-ecg-data-domain-chart" class="section level2">
+<h2>Example 13 - Create an ECG Data Domain &amp; Chart</h2>
+<p>This example defines a custom ECG data domain and adapts an existing chart for usage there. See <a href="https://github.com/SafetyGraphics/safetyCharts/pull/90">this PR</a> for a full implementation of the ECG domain in safetyCharts.</p>
+<pre><code>
+adeg &lt;- readr::read_csv(&quot;https://physionet.org/files/ecgcipa/1.0.0/adeg.csv?download&quot;)
+
+ecg_meta &lt;-tibble::tribble(
+    ~text_key, ~domain,                      ~label,                               ~description, ~standard_adam, ~standard_sdtm,
+    &quot;id_col&quot;,   &quot;custom_ecg&quot;,                 &quot;ID column&quot;, &quot;Unique subject identifier variable name.&quot;,      &quot;USUBJID&quot;,      &quot;USUBJID&quot;,
+    &quot;value_col&quot;,   &quot;custom_ecg&quot;,              &quot;Value column&quot;,                 &quot;QT result variable name.&quot;,         &quot;AVAL&quot;,     &quot;EGSTRESN&quot;,
+    &quot;measure_col&quot;,   &quot;custom_ecg&quot;,            &quot;Measure column&quot;,                 &quot;QT measure variable name&quot;,        &quot;PARAM&quot;,       &quot;EGTEST&quot;,
+&quot;studyday_col&quot;,   &quot;custom_ecg&quot;,          &quot;Study Day column&quot;,                  &quot;Visit day variable name&quot;,          &quot;ADY&quot;,         &quot;EGDY&quot;,
+    &quot;visit_col&quot;,   &quot;custom_ecg&quot;,              &quot;Visit column&quot;,                      &quot;Visit variable name&quot;,         &quot;ATPT&quot;,        &quot;EGTPT&quot;,
+    &quot;visitn_col&quot;,   &quot;custom_ecg&quot;,       &quot;Visit number column&quot;,               &quot;Visit number variable name&quot;,        &quot;ATPTN&quot;,             NA,
+    &quot;period_col&quot;,   &quot;custom_ecg&quot;,             &quot;Period column&quot;,                     &quot;Period variable name&quot;,      &quot;APERIOD&quot;,             NA,
+    &quot;unit_col&quot;,   &quot;custom_ecg&quot;,               &quot;Unit column&quot;,            &quot;Unit of measure variable name&quot;,        &quot;AVALU&quot;,     &quot;EGSTRESU&quot;
+) %&gt;% mutate(
+    col_key = text_key,
+    type=&quot;column&quot;
+)
+
+qtOutliers&lt;-prepare_chart(read_yaml(&#39;https://raw.githubusercontent.com/SafetyGraphics/safetyCharts/dev/inst/config/safetyOutlierExplorer.yaml&#39;) )
+qtOutliers$label &lt;- &quot;QT Outlier explorer&quot;
+qtOutliers$domain &lt;- &quot;custom_ecg&quot;
+qtOutliers$meta &lt;- ecg_meta
+
+safetyGraphicsApp(
+    meta=ecg_meta, 
+    domainData=list(custom_ecg=adeg), 
+    charts=list(qtOutliers)
+)
+</code></pre>
 </div>
 </div>
 
