@@ -12,7 +12,7 @@
 
 <meta name="author" content="Jeremy Wildfire" />
 
-<meta name="date" content="2022-04-08" />
+<meta name="date" content="2022-12-14" />
 
 <title>Technical FAQ</title>
 
@@ -47,7 +47,7 @@
 
 <h1 class="title toc-ignore">Technical FAQ</h1>
 <h4 class="author">Jeremy Wildfire</h4>
-<h4 class="date">2022-04-08</h4>
+<h4 class="date">2022-12-14</h4>
 
 
 
@@ -129,14 +129,14 @@
 </div>
 <div id="q-do-you-recommend-deploying-the-app-to-a-dedicated-server-for-internal-usage" class="section level2">
 <h2>Q: Do you recommend deploying the app to a dedicated server for internal usage?</h2>
-<p><strong>A</strong>: It depends a bit on your use-case and how the app is hosted. For example, analysts using the data in an exploratory fashion can probably just run it from RStudio, but if multiple medical monitors using the app for medical monitoring in active studies probably need a more robust (and possibly validated) set up using <a href="https://github.com/rstudio/shiny-server/blob/master/README.md">Shiny Server</a>, <a href="https://www.rstudio.com/products/connect/">RStudio Connect</a> or something similar.</p>
+<p><strong>A</strong>: It depends a bit on your use-case and how the app is hosted. For example, analysts using the data in an exploratory fashion can probably just run it from RStudio, but if multiple medical monitors using the app for medical monitoring in active studies probably need a more robust (and possibly validated) set up using <a href="https://github.com/rstudio/shiny-server/blob/master/README.md">Shiny Server</a>, <a href="https://posit.co/products/enterprise/connect/">RStudio Connect</a> or something similar.</p>
 </div>
 <div id="q-can-i-deploy-safetygraphics-to-shinyapps.io-to-explore-trial-data-from-my-organization" class="section level2">
 <h2>Q: Can I deploy <code>safetyGraphics</code> to shinyapps.io to explore trial data from my organization?</h2>
-<p><strong>A</strong>: We advise against loading non-authorized, private, or non-deidentified patient data outside of your organization’s firewall. Consult with your IT and QA first. There is huge risk associated with confidentiality, IP, and patient privacy. Also refer to <a href="https://docs.rstudio.com/shinyapps.io/security-and-compliance.html">ShinyApps.io Chapter 8 Security and Compliance</a>.</p>
+<p><strong>A</strong>: We advise against loading non-authorized, private, or non-deidentified patient data outside of your organization’s firewall. Consult with your IT and QA first. There is huge risk associated with confidentiality, IP, and patient privacy. Also refer to <a href="https://docs.posit.co/shinyapps.io/security-and-compliance.html">ShinyApps.io Chapter 8 Security and Compliance</a>.</p>
 </div>
 <div id="q-can-i-deploy-safetygraphics-to-an-internal-rstudio-connect-server" class="section level2">
-<h2><strong>Q</strong>: Can I deploy <code>safetyGraphics</code> to an internal <a href="https://www.rstudio.com/products/connect/">RStudio Connect</a> server?</h2>
+<h2><strong>Q</strong>: Can I deploy <code>safetyGraphics</code> to an internal <a href="https://posit.co/products/enterprise/connect/">RStudio Connect</a> server?</h2>
 <p><strong>A</strong>: Yes. The <a href="https://github.com/SafetyGraphics/safetyGraphics/blob/dev/inst/deploy/app.R">script below</a> should be easy to deploy via the RStudio interface or by running <code>rsconnect::deployApp()</code> and can easily be customized to support custom data and charts.</p>
 <pre><code># Launch the ShinyApp (Do not remove this comment)
 library(safetyGraphics) 
